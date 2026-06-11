@@ -2,8 +2,8 @@ import discord
 import asyncio
 import os
 
-CHANNEL_ID = 1513832206941028443  # your channel ID
-STICKY_TEXT = "📌 Anything sent in this channel will auto delete in 5 minutes : )"
+CHANNEL_ID = 1513832206941028443
+STICKY_TEXT = "📌 Anything sent in this channel will auto delete in 5 minutes :)"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -14,7 +14,7 @@ sticky_message_id = None
 
 
 # -------------------------
-# DELETE USER MESSAGES AFTER 5 MINUTES (your original system)
+# DELETE MESSAGES AFTER 5 MINUTES
 # -------------------------
 async def delete_later(msg):
     await asyncio.sleep(300)
@@ -25,28 +25,23 @@ async def delete_later(msg):
 
 
 # -------------------------
-# SEND / REFRESH STICKY MESSAGE
+# CREATE OR UPDATE STICKY MESSAGE
 # -------------------------
-async def send_sticky(channel):
+async def update_sticky(channel):
     global sticky_message_id
 
-    msg = await channel.send(STICKY_TEXT)
-    sticky_message_id = msg.id
-
-
-async def refresh_sticky(channel):
-    global sticky_message_id
-
-    # delete old sticky
+    # If sticky exists → edit it (NO spam)
     if sticky_message_id:
         try:
-            old = await channel.fetch_message(sticky_message_id)
-            await old.delete()
+            msg = await channel.fetch_message(sticky_message_id)
+            await msg.edit(content=STICKY_TEXT)
+            return
         except:
             pass
 
-    # send new sticky
-    await send_sticky(channel)
+    # If it doesn't exist → create it
+    msg = await channel.send(STICKY_TEXT)
+    sticky_message_id = msg.id
 
 
 @client.event
@@ -55,28 +50,22 @@ async def on_ready():
 
     channel = client.get_channel(CHANNEL_ID)
     if channel:
-        await send_sticky(channel)
+        await update_sticky(channel)
 
 
 @client.event
 async def on_message(message):
-    global sticky_message_id
-
     if message.author.bot:
         return
 
     if message.channel.id != CHANNEL_ID:
         return
 
-    # -------------------------
-    # your original delete system
-    # -------------------------
+    # delete user message after 5 min
     asyncio.create_task(delete_later(message))
 
-    # -------------------------
-    # sticky message system
-    # -------------------------
-    await refresh_sticky(message.channel)
+    # ensure sticky stays at bottom (without spam)
+    await update_sticky(message.channel)
 
 
 client.run(os.environ["TOKEN"])
