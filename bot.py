@@ -2,7 +2,7 @@ import discord
 import asyncio
 import os
 
-CHANNEL_ID = 123456789012345678  # Replace with your channel ID
+CHANNEL_ID = 1513832206941028443  # Replace with your channel ID
 
 intents = discord.Intents.default()
 intents.message_content = True
