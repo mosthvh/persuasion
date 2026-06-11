@@ -25,32 +25,42 @@ async def delete_later(msg):
 
 
 # -------------------------
-# CREATE OR UPDATE STICKY MESSAGE
+# STICKY REFRESH LOOP (NEW SYSTEM)
 # -------------------------
-async def update_sticky(channel):
+async def sticky_loop():
+    await client.wait_until_ready()
+
     global sticky_message_id
+    channel = client.get_channel(CHANNEL_ID)
 
-    # If sticky exists → edit it (NO spam)
-    if sticky_message_id:
+    if not channel:
+        print("Channel not found")
+        return
+
+    while not client.is_closed():
         try:
-            msg = await channel.fetch_message(sticky_message_id)
-            await msg.edit(content=STICKY_TEXT)
-            return
-        except:
-            pass
+            # delete old sticky if it exists
+            if sticky_message_id:
+                try:
+                    old = await channel.fetch_message(sticky_message_id)
+                    await old.delete()
+                except:
+                    pass
 
-    # If it doesn't exist → create it
-    msg = await channel.send(STICKY_TEXT)
-    sticky_message_id = msg.id
+            # send new sticky
+            msg = await channel.send(STICKY_TEXT)
+            sticky_message_id = msg.id
+
+        except Exception as e:
+            print("Sticky loop error:", e)
+
+        await asyncio.sleep(60)  # refresh every minute
 
 
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user}")
-
-    channel = client.get_channel(CHANNEL_ID)
-    if channel:
-        await update_sticky(channel)
+    client.loop.create_task(sticky_loop())
 
 
 @client.event
@@ -61,11 +71,7 @@ async def on_message(message):
     if message.channel.id != CHANNEL_ID:
         return
 
-    # delete user message after 5 min
     asyncio.create_task(delete_later(message))
-
-    # ensure sticky stays at bottom (without spam)
-    await update_sticky(message.channel)
 
 
 client.run(os.environ["TOKEN"])
